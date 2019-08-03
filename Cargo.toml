@@ -1,0 +1,9 @@
+[package]
+name = "rustsweeper"
+version = "0.1.0"
+authors = ["Christopher Schuster <cs@livoris.net>"]
+edition = "2018"
+
+[dependencies]
+yew = "0.7.0"
+stdweb = "0.4.18"

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rustsweeper</title>
+  <link rel="stylesheet" href="style.css" />
+  <script>
+    var Module = {
+      wasmBinaryFile: "rustsweeper.wasm",
+    }
+  </script>
+  <script src="rustsweeper.js"></script>
+  <script>
+    Runtime.dynCall = dynCall;
+  </script>
+</head>
+<body></body>
+</html>
