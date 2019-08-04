@@ -1,10 +1,15 @@
 # Rustsweeper
 
-Small example Rust project of a mine finding game with an HTML UI based on [yew](https://github.com/yewstack/yew).
+Small example Rust project of a mine finding game with an HTML UI.
 
-The project uses [Cargo Web](https://github.com/koute/cargo-web),
-[stdweb](https://github.com/koute/stdweb) and
-[WebAssembly](https://en.wikipedia.org/wiki/WebAssembly).
+- [src/model.rs](src/model.rs) contains the game state and tests
+- [src/lib.rs](src/lib.rs) contains a UI component for rendering the Game and reacting to events
+
+The code is compiled to [WebAssembly](https://en.wikipedia.org/wiki/WebAssembly)
+and uses uses [yew](https://github.com/yewstack/yew)
+and [stdweb](https://github.com/koute/stdweb) to render and interact with HTML.
+
+The project is build and deployed with [Cargo Web](https://github.com/koute/cargo-web).
 
 # Installing and running
 
