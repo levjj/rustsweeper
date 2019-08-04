@@ -61,7 +61,16 @@ impl IndexMut<Pos> for Model {
     }
 }
 
-const NEIGHBOR_POS: &'static [(i32, i32); 8] = &[(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)];
+const NEIGHBOR_POS: &'static [(i32, i32); 8] = &[
+    (-1, -1),
+    (-1, 0),
+    (-1, 1),
+    (0, -1),
+    (0, 1),
+    (1, -1),
+    (1, 0),
+    (1, 1),
+];
 
 impl Model {
     /// Creates a new instance of the Rustsweeper game with a given width and height.
@@ -115,10 +124,10 @@ impl Model {
         NEIGHBOR_POS
             .iter()
             .map(move |(rx, ry)| (x as i32 + rx, y as i32 + ry))
-            .filter(move |(nx, ny)| {
-                if let Ok(unx) = u8::try_from(*nx) {
-                    if let Ok(uny) = u8::try_from(*ny) {
-                        return unx < width && uny < height
+            .filter(move |&(nx, ny)| {
+                if let Ok(unx) = u8::try_from(nx) {
+                    if let Ok(uny) = u8::try_from(ny) {
+                        return unx < width && uny < height;
                     }
                 };
                 false
@@ -135,7 +144,7 @@ impl Model {
                     if self[neighbor].mine {
                         neighbors += 1
                     }
-                };
+                }
                 self[(x, y)].neighbors = neighbors
             }
         }
@@ -175,26 +184,26 @@ impl Model {
     /// Returns false if the cell was already revealed.
     pub fn reveal(&mut self, pos: Pos) -> bool {
         if self[pos].revealed || self[pos].marked {
-            return false
+            return false;
         };
         if self[pos].mine {
             for cell in self.cells.iter_mut() {
                 cell.revealed = true
-            };
-            return true
+            }
+            return true;
         };
         let mut todo = vec![pos];
         while let Some(next) = todo.pop() {
             self[next].revealed = true;
             if self[next].neighbors > 0 || self[next].mine {
-                continue
+                continue;
             };
             for neighbor in self.iter_neighbor(next) {
                 if !self[neighbor].revealed && !self[neighbor].marked {
                     todo.push(neighbor)
                 }
             }
-        };
+        }
         true
     }
 
