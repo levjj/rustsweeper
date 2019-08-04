@@ -1,7 +1,7 @@
-target/wasm32-unknown-emscripten/debug/rustsweeper.js target/wasm32-unknown-emscripten/debug/rustsweeper.wasm: src/main.rs src/lib.rs
+target/wasm32-unknown-emscripten/debug/rustsweeper.js target/wasm32-unknown-emscripten/debug/rustsweeper.wasm: src/main.rs src/lib.rs src/model.rs
 	cargo build --target=wasm32-unknown-emscripten
 
-target/wasm32-unknown-emscripten/release/rustsweeper.js target/wasm32-unknown-emscripten/release/rustsweeper.wasm: src/main.rs src/lib.rs
+target/wasm32-unknown-emscripten/release/rustsweeper.js target/wasm32-unknown-emscripten/release/rustsweeper.wasm: src/main.rs src/lib.rs src/model.rs
 	cargo build --target=wasm32-unknown-emscripten --release
 
 debug: target/wasm32-unknown-emscripten/debug/rustsweeper.js target/wasm32-unknown-emscripten/debug/rustsweeper.wasm
@@ -18,3 +18,5 @@ served: debug
 server: release
 	cd site && python -m SimpleHTTPServer
 
+clean:
+	rm -rf target

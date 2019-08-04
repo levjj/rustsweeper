@@ -11,12 +11,31 @@ main {
   border-radius: 1rem;
   box-shadow: #666 0 0 10px;
 }
-nav {
+main nav {
   padding: 1rem;
+  margin-top: 1rem;
   background-color: #bbb;
   border-radius: 1rem;
 }
-nav button {
+main nav button {
   padding: 0.5rem;
   margin: 1rem;
+  float: right;
+}
+main table, main table tr { 
+  width: 100%;
+}
+main table, main table tr, main table td {
+  padding: 0;
+  margin: 0;
+}
+main table td button {
+  display: block;
+  height: 50px;
+  width: 50px;
+  margin-left: auto;
+  margin-right: auto;
+}
+main table td button.unknown {
+  background-color: #999;
 }
