@@ -14,10 +14,13 @@ pub enum CellView {
     Empty(u8),
     /// The cell is not revealed.
     Unknown,
+    /// The cell was marked by the user.
+    Marked,
 }
 
 #[derive(Clone)]
 pub struct Cell {
+    marked: bool,
     mine: bool,
     neighbors: u8,
     revealed: bool,
@@ -25,7 +28,9 @@ pub struct Cell {
 
 impl Cell {
     fn to_view(&self) -> CellView {
-        if !self.revealed {
+        if self.marked {
+            CellView::Marked
+        } else if !self.revealed {
             CellView::Unknown
         } else if self.mine {
             CellView::Mine
@@ -39,8 +44,6 @@ impl Cell {
 pub struct Model {
     pub width: u8,
     pub height: u8,
-    /// If `message` is present, it indicates that the game is over (either won or lost).
-    pub message: Option<String>,
     cells: Vec<Cell>,
 }
 
@@ -64,9 +67,9 @@ impl Model {
         Model {
             width: width,
             height: height,
-            message: None,
             cells: vec![
                 Cell {
+                    marked: false,
                     mine: false,
                     neighbors: 0,
                     revealed: false
@@ -81,16 +84,15 @@ impl Model {
         for cell in self.cells.iter_mut() {
             cell.mine = false;
             cell.neighbors = 0;
-            cell.revealed = false
+            cell.revealed = false;
+            cell.marked = false
         }
-        self.message = None
     }
 
     fn place_mine<R: Rng>(&mut self, rng: &mut R) {
         loop {
             let x: u8 = rng.gen_range(0, self.width);
             let y: u8 = rng.gen_range(0, self.height);
-            println!("{} {}", x, y);
             if !self[(x, y)].mine {
                 self[(x, y)].mine = true;
                 return;
@@ -124,8 +126,30 @@ impl Model {
         }
     }
 
+    fn lost(&self) -> bool {
+        self.cells.iter().any(|cell| cell.revealed && cell.mine)
+    }
+
     fn won(&self) -> bool {
         self.cells.iter().all(|cell| cell.revealed || cell.mine)
+    }
+
+    /// Whether the game is won or lost.
+    pub fn game_over(&self) -> bool {
+        self.lost() || self.won()
+    }
+
+    /// Returns a message that summarizes the game state.
+    pub fn message(&self) -> String {
+        if self.lost() {
+            String::from("Game lost!")
+        } else if self.won() {
+            String::from("Game won!")
+        } else {
+            let marked = self.cells.iter().filter(|cell| cell.marked).count();
+            let mines = self.cells.iter().filter(|cell| cell.mine).count();
+            format!("Found {} of {} mines.", marked, mines)
+        }
     }
 
     /// Reveals the cell at the given position.
@@ -134,17 +158,21 @@ impl Model {
     ///
     /// Returns false if the cell was already revealed.
     pub fn reveal(&mut self, pos: Pos) -> bool {
-        // let mut cell = &;
-        if self[pos].revealed {
-            return false;
-        };
-        self[pos].revealed = true;
-        if self[pos].mine {
-            self.message = Some(String::from("You lost!"))
-        } else if self.won() {
-            self.message = Some(String::from("You won!"))
+        if self[pos].revealed || self[pos].marked {
+            false
+        } else {
+            self[pos].revealed = true;
+            true
         }
-        true
+    }
+
+    pub fn toggle_marked(&mut self, pos: Pos) -> bool {
+        if self[pos].revealed {
+            false
+        } else {
+            self[pos].marked = !self[pos].marked;
+            true
+        }
     }
 
     pub fn to_grid(&self) -> Vec<Vec<CellView>> {
@@ -165,6 +193,7 @@ mod tests {
         assert_eq!(
             CellView::Mine,
             Cell {
+                marked: false,
                 mine: true,
                 neighbors: 4,
                 revealed: true
@@ -174,6 +203,7 @@ mod tests {
         assert_eq!(
             CellView::Unknown,
             Cell {
+                marked: false,
                 mine: true,
                 neighbors: 4,
                 revealed: false
@@ -183,6 +213,7 @@ mod tests {
         assert_eq!(
             CellView::Empty(4),
             Cell {
+                marked: false,
                 mine: false,
                 neighbors: 4,
                 revealed: true
@@ -192,6 +223,17 @@ mod tests {
         assert_eq!(
             CellView::Unknown,
             Cell {
+                marked: false,
+                mine: false,
+                neighbors: 4,
+                revealed: false
+            }
+            .to_view()
+        );
+        assert_eq!(
+            CellView::Marked,
+            Cell {
+                marked: true,
                 mine: false,
                 neighbors: 4,
                 revealed: false
@@ -206,7 +248,6 @@ mod tests {
         assert_eq!(model.width, 3);
         assert_eq!(model.height, 5);
         assert_eq!(model.cells.len(), 3 * 5);
-        assert!(model.message.is_none())
     }
 
     #[test]
@@ -244,10 +285,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(23);
         let mut model = Model::new(3, 5);
         model.place_mines(4, &mut rng);
-        let mines = model
-            .cells
-            .iter()
-            .fold(0, |acc, cell| acc + if cell.mine { 1 } else { 0 });
+        let mines = model.cells.iter().filter(|cell| cell.mine).count();
         assert_eq!(mines, 4)
     }
 
@@ -291,6 +329,18 @@ mod tests {
         assert!(model.reveal((1, 0)));
         assert!(model[(1, 0)].revealed);
         assert!(!model.reveal((1, 0)))
+    }
+
+    #[test]
+    fn toggle_marked() {
+        let mut model = Model::new(3, 5);
+        assert!(model.toggle_marked((1, 0)));
+        assert!(model[(1, 0)].marked);
+        assert!(!model.reveal((1, 0)));
+        assert!(!model[(1, 0)].revealed);
+        model[(2, 0)].revealed = true;
+        assert!(!model.toggle_marked((2, 0)));
+        assert!(!model[(2, 0)].marked)
     }
 
     #[test]

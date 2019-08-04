@@ -1,12 +1,13 @@
 mod model;
-
 pub use model::Model;
 use model::{CellView, Pos};
 use rand::thread_rng;
+use stdweb::traits::IEvent;
 use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 pub enum Action {
     Reveal(Pos),
+    ToggleMark(Pos),
     Restart,
 }
 
@@ -24,6 +25,7 @@ impl Component for Model {
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             Action::Reveal(pos) => self.reveal(pos),
+            Action::ToggleMark(pos) => self.toggle_marked(pos),
             Action::Restart => {
                 self.reset();
                 self.place_mines(10, &mut thread_rng());
@@ -34,11 +36,20 @@ impl Component for Model {
     }
 }
 
+fn cell_to_class(cell: &CellView) -> String {
+    match &cell {
+        CellView::Marked => String::from("unknown"),
+        CellView::Unknown => String::from("unknown"),
+        _ => String::from("revealed"),
+    }
+}
+
 fn cell_to_str(cell: &CellView) -> String {
     match &cell {
         CellView::Empty(0) => String::new(),
         CellView::Empty(n) => n.to_string(),
         CellView::Mine => String::from("💣"),
+        CellView::Marked => String::from("⚑"),
         CellView::Unknown => String::new(),
     }
 }
@@ -47,9 +58,10 @@ fn view_cell(x: usize, y: usize, cell: &CellView, disabled: bool) -> Html<Model>
     html! {
         <td>
             <button
-              class=if *cell == CellView::Unknown { "unknown" } else { "revealed" }
+              class=cell_to_class(cell)
               disabled=disabled
-              onclick=|_| Action::Reveal((x as u8, y as u8))>
+              onclick=|e| Action::Reveal((x as u8, y as u8))
+              oncontextmenu=|e| { e.prevent_default(); Action::ToggleMark((x as u8, y as u8)) }>
               { cell_to_str(cell) }
             </button>
         </td>
@@ -65,7 +77,7 @@ fn view_row(y: usize, row: &Vec<CellView>, disabled: bool) -> Html<Model> {
 }
 
 fn view_grid(model: &Model) -> Html<Model> {
-    let disabled = model.message.is_some();
+    let disabled = model.game_over();
     let grid = model.to_grid();
     html! {
         <table>
@@ -81,7 +93,7 @@ impl Renderable<Model> for Model {
                 <h1>{ "Rustsweeper" }</h1>
                 <nav>
                     <button onclick=|_| Action::Restart>{ "Restart" }</button>
-                    <p>{ self.message.as_ref().unwrap_or(&String::new()) }</p>
+                    <p>{ self.message() }</p>
                     <div style="clear:both"></div>
                 </nav>
                 { view_grid(self) }

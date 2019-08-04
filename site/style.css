@@ -12,14 +12,16 @@ main {
   box-shadow: #666 0 0 10px;
 }
 main nav {
-  padding: 1rem;
+  padding: 0.5rem;
   margin-top: 1rem;
-  background-color: #bbb;
+  margin-bottom: 1rem;
+  background-color: #ddd;
   border-radius: 1rem;
+  box-shadow: #666 0 0 10px;
 }
 main nav button {
   padding: 0.5rem;
-  margin: 1rem;
+  margin-right: 1rem;
   float: right;
 }
 main table, main table tr { 
@@ -35,6 +37,9 @@ main table td button {
   width: 50px;
   margin-left: auto;
   margin-right: auto;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 50px;
 }
 main table td button.unknown {
   background-color: #999;
