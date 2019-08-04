@@ -137,7 +137,10 @@ impl Model {
     pub fn calc_neighbors(&mut self) {
         for x in 0..self.width {
             for y in 0..self.height {
-                self[(x,y)].neighbors = self.iter_neighbors((x, y)).filter(|&n| self[n].mine).count() as u8
+                self[(x, y)].neighbors = self
+                    .iter_neighbors((x, y))
+                    .filter(|&n| self[n].mine)
+                    .count() as u8
             }
         }
     }
@@ -198,7 +201,7 @@ impl Model {
             let mut todo = vec![pos];
             while let Some(next) = todo.pop() {
                 self.reveal_transitive(next, &mut todo);
-            };
+            }
             true
         }
     }
