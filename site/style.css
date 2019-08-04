@@ -38,9 +38,10 @@ main table td button {
   margin-left: auto;
   margin-right: auto;
   text-align: center;
-  vertical-align: middle;
   line-height: 50px;
+  background-color: #fff;
+  font-size: 150%;
 }
 main table td button.unknown {
-  background-color: #999;
+  background-color: #ddd;
 }

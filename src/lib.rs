@@ -54,12 +54,12 @@ fn cell_to_str(cell: &CellView) -> String {
     }
 }
 
-fn view_cell(x: usize, y: usize, cell: &CellView, disabled: bool) -> Html<Model> {
+fn view_cell(x: usize, y: usize, cell: &CellView, game_over: bool) -> Html<Model> {
     html! {
         <td>
             <button
               class=cell_to_class(cell)
-              disabled=disabled
+              disabled=game_over
               onclick=|e| Action::Reveal((x as u8, y as u8))
               oncontextmenu=|e| { e.prevent_default(); Action::ToggleMark((x as u8, y as u8)) }>
               { cell_to_str(cell) }
@@ -68,20 +68,20 @@ fn view_cell(x: usize, y: usize, cell: &CellView, disabled: bool) -> Html<Model>
     }
 }
 
-fn view_row(y: usize, row: &Vec<CellView>, disabled: bool) -> Html<Model> {
+fn view_row(y: usize, row: &Vec<CellView>, game_over: bool) -> Html<Model> {
     html! {
         <tr>
-            { for row.iter().enumerate().map(|(x, cell)| view_cell(x, y, cell, disabled))  }
+            { for row.iter().enumerate().map(|(x, cell)| view_cell(x, y, cell, game_over))  }
         </tr>
     }
 }
 
 fn view_grid(model: &Model) -> Html<Model> {
-    let disabled = model.game_over();
+    let game_over = model.game_over();
     let grid = model.to_grid();
     html! {
         <table>
-            { for grid.iter().enumerate().map(|(y, row)| view_row(y, row, disabled) )  }
+            { for grid.iter().enumerate().map(|(y, row)| view_row(y, row, game_over) )  }
         </table>
     }
 }

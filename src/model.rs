@@ -61,6 +61,8 @@ impl IndexMut<Pos> for Model {
     }
 }
 
+const NEIGHBOR_POS: &'static [(i32, i32); 8] = &[(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)];
+
 impl Model {
     /// Creates a new instance of the Rustsweeper game with a given width and height.
     pub fn new(width: u8, height: u8) -> Model {
@@ -107,21 +109,34 @@ impl Model {
         }
     }
 
+    fn iter_neighbor<'a>(&'a self, (x, y): Pos) -> impl Iterator<Item = (u8, u8)> + 'a {
+        let width = self.width;
+        let height = self.height;
+        NEIGHBOR_POS
+            .iter()
+            .map(move |(rx, ry)| (x as i32 + rx, y as i32 + ry))
+            .filter(move |(nx, ny)| {
+                if let Ok(unx) = u8::try_from(*nx) {
+                    if let Ok(uny) = u8::try_from(*ny) {
+                        return unx < width && uny < height
+                    }
+                };
+                false
+            })
+            .map(|(nx, ny)| (nx as u8, ny as u8))
+    }
+
     /// Calculates the number of neighboring mines of all cells.
     pub fn calc_neighbors(&mut self) {
         for x in 0..self.width {
             for y in 0..self.height {
-                for rx in -1..2 {
-                    for ry in -1..2 {
-                        if let Ok(nx) = u8::try_from(x as i32 + rx) {
-                            if let Ok(ny) = u8::try_from(y as i32 + ry) {
-                                if nx < self.width && ny < self.height && self[(nx, ny)].mine {
-                                    self[(x, y)].neighbors += 1
-                                }
-                            }
-                        }
+                let mut neighbors = 0;
+                for neighbor in self.iter_neighbor((x, y)) {
+                    if self[neighbor].mine {
+                        neighbors += 1
                     }
-                }
+                };
+                self[(x, y)].neighbors = neighbors
             }
         }
     }
@@ -152,18 +167,35 @@ impl Model {
         }
     }
 
-    /// Reveals the cell at the given position.
+    /// Reveals the cell at the given position and transitively reveals all other connected cells
+    /// with 0 neighboring mines.
     ///
     /// # Return value
     ///
     /// Returns false if the cell was already revealed.
     pub fn reveal(&mut self, pos: Pos) -> bool {
         if self[pos].revealed || self[pos].marked {
-            false
-        } else {
-            self[pos].revealed = true;
-            true
-        }
+            return false
+        };
+        if self[pos].mine {
+            for cell in self.cells.iter_mut() {
+                cell.revealed = true
+            };
+            return true
+        };
+        let mut todo = vec![pos];
+        while let Some(next) = todo.pop() {
+            self[next].revealed = true;
+            if self[next].neighbors > 0 || self[next].mine {
+                continue
+            };
+            for neighbor in self.iter_neighbor(next) {
+                if !self[neighbor].revealed && !self[neighbor].marked {
+                    todo.push(neighbor)
+                }
+            }
+        };
+        true
     }
 
     pub fn toggle_marked(&mut self, pos: Pos) -> bool {
@@ -319,7 +351,7 @@ mod tests {
         model[(1, 1)].mine = true;
         model[(1, 2)].mine = true;
         model.calc_neighbors();
-        assert_neighbors!(model, (2, 2, 1), (3, 3, 2), (3, 3, 2), (1, 1, 1), (0, 0, 0))
+        assert_neighbors!(model, (2, 2, 1), (2, 2, 2), (3, 2, 2), (1, 1, 1), (0, 0, 0))
     }
 
     #[test]
