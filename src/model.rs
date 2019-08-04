@@ -118,34 +118,26 @@ impl Model {
         }
     }
 
-    fn iter_neighbor<'a>(&'a self, (x, y): Pos) -> impl Iterator<Item = (u8, u8)> + 'a {
+    fn iter_neighbors(&self, (x, y): Pos) -> impl Iterator<Item = (u8, u8)> {
         let width = self.width;
         let height = self.height;
-        NEIGHBOR_POS
-            .iter()
-            .filter_map(move |(rx, ry)| {
-                if let Ok(unx) = u8::try_from(x as i32 + rx) {
-                   if let Ok(uny) = u8::try_from(y as i32 + ry) {
-                       if unx < width && uny < height {
-                           return Some((unx, uny));
-                       }
+        NEIGHBOR_POS.iter().filter_map(move |(rx, ry)| {
+            if let Ok(unx) = u8::try_from(x as i32 + rx) {
+                if let Ok(uny) = u8::try_from(y as i32 + ry) {
+                    if unx < width && uny < height {
+                        return Some((unx, uny));
                     }
                 }
-                None
-            })
+            }
+            None
+        })
     }
 
     /// Calculates the number of neighboring mines of all cells.
     pub fn calc_neighbors(&mut self) {
         for x in 0..self.width {
             for y in 0..self.height {
-                let mut neighbors = 0;
-                for neighbor in self.iter_neighbor((x, y)) {
-                    if self[neighbor].mine {
-                        neighbors += 1
-                    }
-                }
-                self[(x, y)].neighbors = neighbors
+                self[(x,y)].neighbors = self.iter_neighbors((x, y)).filter(|&n| self[n].mine).count() as u8
             }
         }
     }
@@ -176,6 +168,17 @@ impl Model {
         }
     }
 
+    fn reveal_transitive(&mut self, pos: Pos, todo: &mut Vec<Pos>) {
+        if self[pos].neighbors == 0 && !self[pos].mine {
+            for neighbor in self.iter_neighbors(pos) {
+                if !self[neighbor].revealed && !self[neighbor].marked {
+                    self[neighbor].revealed = true;
+                    todo.push(neighbor)
+                }
+            }
+        }
+    }
+
     /// Reveals the cell at the given position and transitively reveals all other connected cells
     /// with 0 neighboring mines.
     ///
@@ -184,27 +187,20 @@ impl Model {
     /// Returns false if the cell was already revealed.
     pub fn reveal(&mut self, pos: Pos) -> bool {
         if self[pos].revealed || self[pos].marked {
-            return false;
-        };
-        if self[pos].mine {
+            false
+        } else if self[pos].mine {
             for cell in self.cells.iter_mut() {
                 cell.revealed = true
             }
-            return true;
-        };
-        let mut todo = vec![pos];
-        while let Some(next) = todo.pop() {
-            self[next].revealed = true;
-            if self[next].neighbors > 0 || self[next].mine {
-                continue;
+            true
+        } else {
+            self[pos].revealed = true;
+            let mut todo = vec![pos];
+            while let Some(next) = todo.pop() {
+                self.reveal_transitive(next, &mut todo);
             };
-            for neighbor in self.iter_neighbor(next) {
-                if !self[neighbor].revealed && !self[neighbor].marked {
-                    todo.push(neighbor)
-                }
-            }
+            true
         }
-        true
     }
 
     pub fn toggle_marked(&mut self, pos: Pos) -> bool {
