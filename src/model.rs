@@ -123,16 +123,16 @@ impl Model {
         let height = self.height;
         NEIGHBOR_POS
             .iter()
-            .map(move |(rx, ry)| (x as i32 + rx, y as i32 + ry))
-            .filter(move |&(nx, ny)| {
-                if let Ok(unx) = u8::try_from(nx) {
-                    if let Ok(uny) = u8::try_from(ny) {
-                        return unx < width && uny < height;
+            .filter_map(move |(rx, ry)| {
+                if let Ok(unx) = u8::try_from(x as i32 + rx) {
+                   if let Ok(uny) = u8::try_from(y as i32 + ry) {
+                       if unx < width && uny < height {
+                           return Some((unx, uny));
+                       }
                     }
-                };
-                false
+                }
+                None
             })
-            .map(|(nx, ny)| (nx as u8, ny as u8))
     }
 
     /// Calculates the number of neighboring mines of all cells.
