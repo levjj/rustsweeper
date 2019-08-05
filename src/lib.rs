@@ -35,6 +35,9 @@ impl Component for CellModel {
     }
 
     fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        if self.state == props.state && self.game_over == props.game_over {
+            return false;
+        }
         self.state = props.state;
         self.mine = props.mine;
         self.neighbors = props.neighbors;
