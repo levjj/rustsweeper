@@ -1,19 +1,19 @@
 mod model;
-use model::{Cell, CellState, Pos};
 pub use model::Model;
+use model::{Cell, CellState, Pos};
 use rand::thread_rng;
 use stdweb::traits::IEvent;
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
 enum CellAction {
     Reveal,
-    ToggleMark
+    ToggleMark,
 }
 
 pub enum Action {
     Reveal(Pos),
     ToggleMark(Pos),
-    Restart
+    Restart,
 }
 
 #[derive(PartialEq, Clone, Default)]
@@ -51,14 +51,20 @@ impl Component for CellModel {
         match msg {
             CellAction::Reveal => {
                 if self.state == CellState::Unmarked {
-                    self.onreveal.as_ref().map_or(false, |s| { s.emit(()); true })
+                    self.onreveal.as_ref().map_or(false, |s| {
+                        s.emit(());
+                        true
+                    })
                 } else {
                     false
                 }
             }
             CellAction::ToggleMark => {
                 if self.state != CellState::Revealed {
-                    self.onmark.as_ref().map_or(false, |s| { s.emit(()); true })
+                    self.onmark.as_ref().map_or(false, |s| {
+                        s.emit(());
+                        true
+                    })
                 } else {
                     false
                 }
@@ -70,12 +76,20 @@ impl Component for CellModel {
 fn cell_to_class(cell: &CellModel) -> String {
     if cell.game_over {
         if cell.state == CellState::Marked {
-            if cell.mine { String::from("correct") } else { String::from("incorrect") }
+            if cell.mine {
+                String::from("correct")
+            } else {
+                String::from("incorrect")
+            }
         } else {
             String::new()
         }
     } else {
-        if cell.state == CellState::Revealed { String::new() } else { String::from("unknown") }
+        if cell.state == CellState::Revealed {
+            String::new()
+        } else {
+            String::from("unknown")
+        }
     }
 }
 
@@ -126,10 +140,10 @@ impl Component for Model {
         match msg {
             Action::Reveal(pos) => {
                 self.reveal(pos);
-            },
+            }
             Action::ToggleMark(pos) => {
                 self.toggle_marked(pos);
-            },
+            }
             Action::Restart => {
                 self.reset();
                 self.place_mines(10, &mut thread_rng());

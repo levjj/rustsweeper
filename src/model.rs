@@ -9,18 +9,20 @@ pub type Pos = (u8, u8);
 pub enum CellState {
     Marked,
     Unmarked,
-    Revealed
+    Revealed,
 }
 
 impl Default for CellState {
-    fn default() -> Self { CellState::Unmarked }
+    fn default() -> Self {
+        CellState::Unmarked
+    }
 }
 
 #[derive(Clone)]
 pub struct Cell {
     pub mine: bool,
     pub neighbors: u8,
-    pub state: CellState
+    pub state: CellState,
 }
 
 /// The current game state of Rustsweeper.
@@ -127,11 +129,15 @@ impl Model {
     }
 
     fn lost(&self) -> bool {
-        self.cells.iter().any(|cell| cell.state == CellState::Revealed && cell.mine)
+        self.cells
+            .iter()
+            .any(|cell| cell.state == CellState::Revealed && cell.mine)
     }
 
     fn won(&self) -> bool {
-        self.cells.iter().all(|cell| cell.state == CellState::Revealed || cell.mine)
+        self.cells
+            .iter()
+            .all(|cell| cell.state == CellState::Revealed || cell.mine)
     }
 
     /// Whether the game is won or lost.
@@ -146,7 +152,11 @@ impl Model {
         } else if self.won() {
             String::from("Game won!")
         } else {
-            let marked = self.cells.iter().filter(|cell| cell.state == CellState::Marked).count();
+            let marked = self
+                .cells
+                .iter()
+                .filter(|cell| cell.state == CellState::Marked)
+                .count();
             let mines = self.cells.iter().filter(|cell| cell.mine).count();
             format!("Found {} of {} mines.", marked, mines)
         }
