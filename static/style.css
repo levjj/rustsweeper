@@ -39,9 +39,15 @@ main table td button {
   margin-right: auto;
   text-align: center;
   line-height: 50px;
-  background-color: #fff;
   font-size: 150%;
+  background-color: #fff;
 }
 main table td button.unknown {
   background-color: #ddd;
+}
+main table td button.correct {
+  color: #191;
+}
+main table td button.incorrect {
+  color: #911;
 }

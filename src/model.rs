@@ -5,39 +5,22 @@ use std::ops::{Index, IndexMut};
 /// A position on the rustsweeper cell.
 pub type Pos = (u8, u8);
 
-/// The visible state of a rustsweeper cell.
-#[derive(PartialEq, Debug)]
-pub enum CellView {
-    /// The cell is revealed and includes a mine.
-    Mine,
-    /// The cell is revealed and the number of neighboring mines is visible.
-    Empty(u8),
-    /// The cell is not revealed.
-    Unknown,
-    /// The cell was marked by the user.
+#[derive(Clone, Debug, PartialEq)]
+pub enum CellState {
     Marked,
+    Unmarked,
+    Revealed
+}
+
+impl Default for CellState {
+    fn default() -> Self { CellState::Unmarked }
 }
 
 #[derive(Clone)]
 pub struct Cell {
-    marked: bool,
-    mine: bool,
-    neighbors: u8,
-    revealed: bool,
-}
-
-impl Cell {
-    fn to_view(&self) -> CellView {
-        if self.marked {
-            CellView::Marked
-        } else if !self.revealed {
-            CellView::Unknown
-        } else if self.mine {
-            CellView::Mine
-        } else {
-            CellView::Empty(self.neighbors)
-        }
-    }
+    pub mine: bool,
+    pub neighbors: u8,
+    pub state: CellState
 }
 
 /// The current game state of Rustsweeper.
@@ -80,10 +63,9 @@ impl Model {
             height: height,
             cells: vec![
                 Cell {
-                    marked: false,
+                    state: CellState::Unmarked,
                     mine: false,
                     neighbors: 0,
-                    revealed: false
                 };
                 usize::from(width) * usize::from(height)
             ],
@@ -95,8 +77,7 @@ impl Model {
         for cell in self.cells.iter_mut() {
             cell.mine = false;
             cell.neighbors = 0;
-            cell.revealed = false;
-            cell.marked = false
+            cell.state = CellState::Unmarked;
         }
     }
 
@@ -146,11 +127,11 @@ impl Model {
     }
 
     fn lost(&self) -> bool {
-        self.cells.iter().any(|cell| cell.revealed && cell.mine)
+        self.cells.iter().any(|cell| cell.state == CellState::Revealed && cell.mine)
     }
 
     fn won(&self) -> bool {
-        self.cells.iter().all(|cell| cell.revealed || cell.mine)
+        self.cells.iter().all(|cell| cell.state == CellState::Revealed || cell.mine)
     }
 
     /// Whether the game is won or lost.
@@ -165,7 +146,7 @@ impl Model {
         } else if self.won() {
             String::from("Game won!")
         } else {
-            let marked = self.cells.iter().filter(|cell| cell.marked).count();
+            let marked = self.cells.iter().filter(|cell| cell.state == CellState::Marked).count();
             let mines = self.cells.iter().filter(|cell| cell.mine).count();
             format!("Found {} of {} mines.", marked, mines)
         }
@@ -174,8 +155,8 @@ impl Model {
     fn reveal_transitive(&mut self, pos: Pos, todo: &mut Vec<Pos>) {
         if self[pos].neighbors == 0 && !self[pos].mine {
             for neighbor in self.iter_neighbors(pos) {
-                if !self[neighbor].revealed && !self[neighbor].marked {
-                    self[neighbor].revealed = true;
+                if self[neighbor].state == CellState::Unmarked {
+                    self[neighbor].state = CellState::Revealed;
                     todo.push(neighbor)
                 }
             }
@@ -184,40 +165,27 @@ impl Model {
 
     /// Reveals the cell at the given position and transitively reveals all other connected cells
     /// with 0 neighboring mines.
-    ///
-    /// # Return value
-    ///
-    /// Returns false if the cell was already revealed.
-    pub fn reveal(&mut self, pos: Pos) -> bool {
-        if self[pos].revealed || self[pos].marked {
-            false
-        } else if self[pos].mine {
-            for cell in self.cells.iter_mut() {
-                cell.revealed = true
-            }
-            true
-        } else {
-            self[pos].revealed = true;
+    pub fn reveal(&mut self, pos: Pos) {
+        self[pos].state = CellState::Revealed;
+        if !self[pos].mine {
             let mut todo = vec![pos];
             while let Some(next) = todo.pop() {
                 self.reveal_transitive(next, &mut todo);
             }
-            true
         }
     }
 
-    pub fn toggle_marked(&mut self, pos: Pos) -> bool {
-        if self[pos].revealed {
-            false
-        } else {
-            self[pos].marked = !self[pos].marked;
-            true
+    pub fn toggle_marked(&mut self, pos: Pos) {
+        if self[pos].state == CellState::Marked {
+            self[pos].state = CellState::Unmarked
+        } else if self[pos].state == CellState::Unmarked {
+            self[pos].state = CellState::Marked
         }
     }
 
-    pub fn to_grid(&self) -> Vec<Vec<CellView>> {
+    pub fn to_grid(&self) -> Vec<Vec<Cell>> {
         (0..self.height)
-            .map(|y| (0..self.width).map(|x| self[(x, y)].to_view()).collect())
+            .map(|y| (0..self.width).map(|x| self[(x, y)].clone()).collect())
             .collect()
     }
 }
@@ -227,60 +195,6 @@ mod tests {
     use super::*;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
-
-    #[test]
-    fn cell_view() {
-        assert_eq!(
-            CellView::Mine,
-            Cell {
-                marked: false,
-                mine: true,
-                neighbors: 4,
-                revealed: true
-            }
-            .to_view()
-        );
-        assert_eq!(
-            CellView::Unknown,
-            Cell {
-                marked: false,
-                mine: true,
-                neighbors: 4,
-                revealed: false
-            }
-            .to_view()
-        );
-        assert_eq!(
-            CellView::Empty(4),
-            Cell {
-                marked: false,
-                mine: false,
-                neighbors: 4,
-                revealed: true
-            }
-            .to_view()
-        );
-        assert_eq!(
-            CellView::Unknown,
-            Cell {
-                marked: false,
-                mine: false,
-                neighbors: 4,
-                revealed: false
-            }
-            .to_view()
-        );
-        assert_eq!(
-            CellView::Marked,
-            Cell {
-                marked: true,
-                mine: false,
-                neighbors: 4,
-                revealed: false
-            }
-            .to_view()
-        );
-    }
 
     #[test]
     fn new() {
@@ -295,7 +209,7 @@ mod tests {
         let model = Model::new(3, 5);
         let cell = &model[(0, 1)];
         assert!(!cell.mine);
-        assert!(!cell.revealed);
+        assert_eq!(cell.state, CellState::Unmarked);
         assert_eq!(cell.neighbors, 0);
     }
 
@@ -303,12 +217,12 @@ mod tests {
     fn reset() {
         let mut model = Model::new(3, 5);
         model[(1, 1)].mine = true;
-        model[(1, 1)].revealed = true;
+        model[(1, 1)].state = CellState::Revealed;
         model[(1, 1)].neighbors = 4;
         model.reset();
         let cell = &model[(1, 1)];
         assert!(!cell.mine);
-        assert!(!cell.revealed);
+        assert_eq!(cell.state, CellState::Unmarked);
         assert_eq!(cell.neighbors, 0)
     }
 
@@ -366,38 +280,34 @@ mod tests {
     fn reveal() {
         let mut model = Model::new(3, 5);
         model[(0, 0)].mine = true;
-        assert!(model.reveal((1, 0)));
-        assert!(model[(1, 0)].revealed);
-        assert!(!model.reveal((1, 0)))
+        model[(1, 0)].neighbors = 1;
+        model.reveal((1, 0));
+        assert_eq!(model[(1, 0)].state, CellState::Revealed);
+        assert_eq!(model[(2, 0)].state, CellState::Unmarked);
+        model.reveal((2, 0));
+        assert_eq!(model[(2, 0)].state, CellState::Revealed);
+        assert_eq!(model[(2, 1)].state, CellState::Revealed);
     }
 
     #[test]
     fn toggle_marked() {
         let mut model = Model::new(3, 5);
-        assert!(model.toggle_marked((1, 0)));
-        assert!(model[(1, 0)].marked);
-        assert!(!model.reveal((1, 0)));
-        assert!(!model[(1, 0)].revealed);
-        model[(2, 0)].revealed = true;
-        assert!(!model.toggle_marked((2, 0)));
-        assert!(!model[(2, 0)].marked)
+        model[(0, 0)].mine = true;
+        model.toggle_marked((1, 0));
+        assert_eq!(model[(1, 0)].state, CellState::Marked);
+        assert_eq!(model[(2, 0)].state, CellState::Unmarked);
+        model.toggle_marked((2, 0));
+        assert_eq!(model[(2, 0)].state, CellState::Marked);
+        assert_eq!(model[(2, 1)].state, CellState::Unmarked);
     }
 
     #[test]
     fn to_grid() {
         let mut model = Model::new(3, 5);
-        model[(0, 0)].mine = true;
-        model[(1, 0)].mine = true;
-        model[(1, 0)].revealed = true;
-        model[(2, 0)].revealed = true;
-        model[(2, 0)].neighbors = 1;
         let vec = model.to_grid();
         assert_eq!(vec.len(), 5);
         let first_row = vec.first();
         assert!(first_row.is_some());
         assert_eq!(first_row.unwrap().len(), 3);
-        assert_eq!(first_row.unwrap()[0], CellView::Unknown);
-        assert_eq!(first_row.unwrap()[1], CellView::Mine);
-        assert_eq!(first_row.unwrap()[2], CellView::Empty(1));
     }
 }

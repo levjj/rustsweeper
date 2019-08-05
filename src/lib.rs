@@ -1,14 +1,111 @@
 mod model;
+use model::{Cell, CellState, Pos};
 pub use model::Model;
-use model::{CellView, Pos};
 use rand::thread_rng;
 use stdweb::traits::IEvent;
-use yew::{html, Component, ComponentLink, Html, Renderable, ShouldRender};
+use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
+
+enum CellAction {
+    Reveal,
+    ToggleMark
+}
 
 pub enum Action {
     Reveal(Pos),
     ToggleMark(Pos),
-    Restart,
+    Restart
+}
+
+#[derive(PartialEq, Clone, Default)]
+struct CellModel {
+    mine: bool,
+    neighbors: u8,
+    state: CellState,
+    game_over: bool,
+    onreveal: Option<Callback<()>>,
+    onmark: Option<Callback<()>>,
+}
+
+impl Component for CellModel {
+    type Message = CellAction;
+    type Properties = CellModel;
+
+    fn create(props: Self::Properties, _: ComponentLink<Self>) -> Self {
+        props.clone()
+    }
+
+    fn change(&mut self, props: Self::Properties) -> ShouldRender {
+        self.state = props.state;
+        self.mine = props.mine;
+        self.neighbors = props.neighbors;
+        self.game_over = props.game_over;
+        self.onreveal = props.onreveal;
+        self.onmark = props.onmark;
+        true
+    }
+
+    fn update(&mut self, msg: Self::Message) -> ShouldRender {
+        match msg {
+            CellAction::Reveal => {
+                if self.state == CellState::Unmarked {
+                    self.onreveal.as_ref().map_or(false, |s| { s.emit(()); true })
+                } else {
+                    false
+                }
+            }
+            CellAction::ToggleMark => {
+                if self.state != CellState::Revealed {
+                    self.onmark.as_ref().map_or(false, |s| { s.emit(()); true })
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
+fn cell_to_class(cell: &CellModel) -> String {
+    if cell.game_over {
+        if cell.state == CellState::Marked {
+            if cell.mine { String::from("correct") } else { String::from("incorrect") }
+        } else {
+            String::new()
+        }
+    } else {
+        if cell.state == CellState::Revealed { String::new() } else { String::from("unknown") }
+    }
+}
+
+fn cell_to_str(cell: &CellModel) -> String {
+    if cell.state == CellState::Marked {
+        String::from("⚑")
+    } else if cell.state == CellState::Revealed || cell.game_over {
+        if cell.mine {
+            String::from("💣")
+        } else if cell.neighbors == 0 {
+            String::new()
+        } else {
+            cell.neighbors.to_string()
+        }
+    } else {
+        String::new()
+    }
+}
+
+impl Renderable<CellModel> for CellModel {
+    fn view(&self) -> Html<Self> {
+        html! {
+            <td>
+                <button
+                class=cell_to_class(&self)
+                disabled=self.game_over
+                onclick=|_| CellAction::Reveal
+                oncontextmenu=|e| { e.prevent_default(); CellAction::ToggleMark }>
+                { cell_to_str(&self) }
+                </button>
+            </td>
+        }
+    }
 }
 
 impl Component for Model {
@@ -24,51 +121,35 @@ impl Component for Model {
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
-            Action::Reveal(pos) => self.reveal(pos),
-            Action::ToggleMark(pos) => self.toggle_marked(pos),
+            Action::Reveal(pos) => {
+                self.reveal(pos);
+            },
+            Action::ToggleMark(pos) => {
+                self.toggle_marked(pos);
+            },
             Action::Restart => {
                 self.reset();
                 self.place_mines(10, &mut thread_rng());
                 self.calc_neighbors();
-                true
             }
         }
+        true
     }
 }
 
-fn cell_to_class(cell: &CellView) -> String {
-    match &cell {
-        CellView::Marked => String::from("unknown"),
-        CellView::Unknown => String::from("unknown"),
-        _ => String::from("revealed"),
-    }
-}
-
-fn cell_to_str(cell: &CellView) -> String {
-    match &cell {
-        CellView::Empty(0) => String::new(),
-        CellView::Empty(n) => n.to_string(),
-        CellView::Mine => String::from("💣"),
-        CellView::Marked => String::from("⚑"),
-        CellView::Unknown => String::new(),
-    }
-}
-
-fn view_cell(x: usize, y: usize, cell: &CellView, game_over: bool) -> Html<Model> {
+fn view_cell(x: usize, y: usize, cell: &Cell, game_over: bool) -> Html<Model> {
     html! {
-        <td>
-            <button
-              class=cell_to_class(cell)
-              disabled=game_over
-              onclick=|e| Action::Reveal((x as u8, y as u8))
-              oncontextmenu=|e| { e.prevent_default(); Action::ToggleMark((x as u8, y as u8)) }>
-              { cell_to_str(cell) }
-            </button>
-        </td>
+        <CellModel
+          state=cell.state.clone()
+          mine=cell.mine
+          neighbors=cell.neighbors
+          game_over=game_over
+          onreveal=move |_| Action::Reveal((x as u8, y as u8))
+          onmark=move |_| Action::ToggleMark((x as u8, y as u8)) />
     }
 }
 
-fn view_row(y: usize, row: &Vec<CellView>, game_over: bool) -> Html<Model> {
+fn view_row(y: usize, row: &Vec<Cell>, game_over: bool) -> Html<Model> {
     html! {
         <tr>
             { for row.iter().enumerate().map(|(x, cell)| view_cell(x, y, cell, game_over))  }
