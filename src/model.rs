@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn to_grid() {
-        let mut model = Model::new(3, 5);
+        let model = Model::new(3, 5);
         let vec = model.to_grid();
         assert_eq!(vec.len(), 5);
         let first_row = vec.first();
