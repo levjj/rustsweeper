@@ -43,18 +43,18 @@ pub struct Field {
 impl Index<Pos> for Field {
     type Output = Cell;
 
-    fn index<'a>(&'a self, (x, y): Pos) -> &'a Self::Output {
+    fn index(&self, (x, y): Pos) -> &Self::Output {
         &self.cells[x as usize + y as usize * self.width as usize]
     }
 }
 
 impl IndexMut<Pos> for Field {
-    fn index_mut<'a>(&'a mut self, (x, y): Pos) -> &'a mut Self::Output {
+    fn index_mut(&mut self, (x, y): Pos) -> &mut Self::Output {
         &mut self.cells[x as usize + y as usize * self.width as usize]
     }
 }
 
-const NEIGHBOR_POS: &'static [(i32, i32); 8] = &[
+const NEIGHBOR_POS: &[(i32, i32); 8] = &[
     (-1, -1),
     (-1, 0),
     (-1, 1),
@@ -69,8 +69,8 @@ impl Field {
     /// Creates a new instance of the Rustsweeper game with a given width and height.
     pub fn new(width: u8, height: u8) -> Field {
         Field {
-            width: width,
-            height: height,
+            width,
+            height,
             cells: vec![
                 Cell {
                     state: CellState::Unmarked,
@@ -111,7 +111,7 @@ impl Field {
         let width = self.width;
         let height = self.height;
         NEIGHBOR_POS.iter().filter_map(move |(rx, ry)| {
-            match (u8::try_from(x as i32 + rx), u8::try_from(y as i32 + ry)) {
+            match (u8::try_from(i32::from(x) + rx), u8::try_from(i32::from(y) + ry)) {
                 (Ok(unx), Ok(uny)) if unx < width && uny < height => Some((unx, uny)),
                 _ => None,
             }

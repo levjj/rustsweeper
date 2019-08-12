@@ -49,7 +49,7 @@ fn view_cell(x: usize, y: usize, cell: &Cell, game_over: bool) -> Html<Field> {
     }
 }
 
-fn view_row(y: usize, row: &Vec<Cell>, game_over: bool) -> Html<Field> {
+fn view_row(y: usize, row: &[Cell], game_over: bool) -> Html<Field> {
     html! {
         <tr>
             { for row.iter().enumerate().map(|(x, cell)| view_cell(x, y, cell, game_over))  }
