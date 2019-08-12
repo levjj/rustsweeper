@@ -1,4 +1,4 @@
 mod model;
 mod ui;
 
-pub use model::Model;
+pub use model::Field;

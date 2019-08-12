@@ -1,4 +1,4 @@
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use std::convert::TryFrom;
 use std::ops::{Index, IndexMut};
 
@@ -34,13 +34,13 @@ impl Cell {
 }
 
 /// The current game state of Rustsweeper.
-pub struct Model {
+pub struct Field {
     pub width: u8,
     pub height: u8,
     cells: Vec<Cell>,
 }
 
-impl Index<Pos> for Model {
+impl Index<Pos> for Field {
     type Output = Cell;
 
     fn index<'a>(&'a self, (x, y): Pos) -> &'a Self::Output {
@@ -48,7 +48,7 @@ impl Index<Pos> for Model {
     }
 }
 
-impl IndexMut<Pos> for Model {
+impl IndexMut<Pos> for Field {
     fn index_mut<'a>(&'a mut self, (x, y): Pos) -> &'a mut Self::Output {
         &mut self.cells[x as usize + y as usize * self.width as usize]
     }
@@ -65,10 +65,10 @@ const NEIGHBOR_POS: &'static [(i32, i32); 8] = &[
     (1, 1),
 ];
 
-impl Model {
+impl Field {
     /// Creates a new instance of the Rustsweeper game with a given width and height.
-    pub fn new(width: u8, height: u8) -> Model {
-        Model {
+    pub fn new(width: u8, height: u8) -> Field {
+        Field {
             width: width,
             height: height,
             cells: vec![
@@ -113,7 +113,7 @@ impl Model {
         NEIGHBOR_POS.iter().filter_map(move |(rx, ry)| {
             match (u8::try_from(x as i32 + rx), u8::try_from(y as i32 + ry)) {
                 (Ok(unx), Ok(uny)) if unx < width && uny < height => Some((unx, uny)),
-                _ => None
+                _ => None,
             }
         })
     }
@@ -195,7 +195,7 @@ impl Model {
         }
     }
 
-    pub fn to_grid(&self) -> Vec<Vec<Cell>> {
+    pub fn to_field(&self) -> Vec<Vec<Cell>> {
         (0..self.height)
             .map(|y| (0..self.width).map(|x| self[(x, y)].clone()).collect())
             .collect()
@@ -215,16 +215,16 @@ mod tests {
 
     #[test]
     fn new() {
-        let model = Model::new(3, 5);
-        assert_eq!(model.width, 3);
-        assert_eq!(model.height, 5);
-        assert_eq!(model.cells.len(), 3 * 5);
+        let field = Field::new(3, 5);
+        assert_eq!(field.width, 3);
+        assert_eq!(field.height, 5);
+        assert_eq!(field.cells.len(), 3 * 5);
     }
 
     #[test]
     fn index() {
-        let model = Model::new(3, 5);
-        let cell = &model[(0, 1)];
+        let field = Field::new(3, 5);
+        let cell = &field[(0, 1)];
         assert!(!cell.mine);
         assert_eq!(cell.state, CellState::Unmarked);
         assert_eq!(cell.neighbors, 0);
@@ -232,12 +232,12 @@ mod tests {
 
     #[test]
     fn reset() {
-        let mut model = Model::new(3, 5);
-        model[(1, 1)].mine = true;
-        model[(1, 1)].state = CellState::Revealed;
-        model[(1, 1)].neighbors = 4;
-        model.reset();
-        let cell = &model[(1, 1)];
+        let mut field = Field::new(3, 5);
+        field[(1, 1)].mine = true;
+        field[(1, 1)].state = CellState::Revealed;
+        field[(1, 1)].neighbors = 4;
+        field.reset();
+        let cell = &field[(1, 1)];
         assert!(!cell.mine);
         assert_eq!(cell.state, CellState::Unmarked);
         assert_eq!(cell.neighbors, 0)
@@ -246,33 +246,33 @@ mod tests {
     #[test]
     fn place_mine() {
         let mut rng = StdRng::seed_from_u64(23);
-        let mut model = Model::new(3, 5);
-        model.place_mine(&mut rng);
-        assert!(model[(0, 4)].mine);
+        let mut field = Field::new(3, 5);
+        field.place_mine(&mut rng);
+        assert!(field[(0, 4)].mine);
     }
 
     #[test]
     fn place_mines() {
         let mut rng = StdRng::seed_from_u64(23);
-        let mut model = Model::new(3, 5);
-        model.place_mines(4, &mut rng);
-        let mines = model.cells.iter().filter(|cell| cell.mine).count();
+        let mut field = Field::new(3, 5);
+        field.place_mines(4, &mut rng);
+        let mines = field.cells.iter().filter(|cell| cell.mine).count();
         assert_eq!(mines, 4)
     }
 
     macro_rules! assert_neighbors {
-        ( $model:ident | $y:ident | ( $( $n:literal ),* ) ) => {{
+        ( $field:ident | $y:ident | ( $( $n:literal ),* ) ) => {{
             let mut x = 0;
             $(
-                assert_eq!($model[(x, $y)].neighbors, $n);
+                assert_eq!($field[(x, $y)].neighbors, $n);
                 x += 1;
             )*
         }};
 
-        ( $model:ident, $( $x:tt ),* ) => {{
+        ( $field:ident, $( $x:tt ),* ) => {{
             let mut y = 0;
             $(
-                assert_neighbors!($model | y | $x);
+                assert_neighbors!($field | y | $x);
                 y += 1;
             )*
         }};
@@ -285,43 +285,43 @@ mod tests {
         // 3 X 2
         // 1 1 1
         // 0 0 0
-        let mut model = Model::new(3, 5);
-        model[(0, 1)].mine = true;
-        model[(1, 1)].mine = true;
-        model[(1, 2)].mine = true;
-        model.calc_neighbors();
-        assert_neighbors!(model, (2, 2, 1), (2, 2, 2), (3, 2, 2), (1, 1, 1), (0, 0, 0))
+        let mut field = Field::new(3, 5);
+        field[(0, 1)].mine = true;
+        field[(1, 1)].mine = true;
+        field[(1, 2)].mine = true;
+        field.calc_neighbors();
+        assert_neighbors!(field, (2, 2, 1), (2, 2, 2), (3, 2, 2), (1, 1, 1), (0, 0, 0))
     }
 
     #[test]
     fn reveal() {
-        let mut model = Model::new(3, 5);
-        model[(0, 0)].mine = true;
-        model[(1, 0)].neighbors = 1;
-        model.reveal((1, 0));
-        assert_eq!(model[(1, 0)].state, CellState::Revealed);
-        assert_eq!(model[(2, 0)].state, CellState::Unmarked);
-        model.reveal((2, 0));
-        assert_eq!(model[(2, 0)].state, CellState::Revealed);
-        assert_eq!(model[(2, 1)].state, CellState::Revealed);
+        let mut field = Field::new(3, 5);
+        field[(0, 0)].mine = true;
+        field[(1, 0)].neighbors = 1;
+        field.reveal((1, 0));
+        assert_eq!(field[(1, 0)].state, CellState::Revealed);
+        assert_eq!(field[(2, 0)].state, CellState::Unmarked);
+        field.reveal((2, 0));
+        assert_eq!(field[(2, 0)].state, CellState::Revealed);
+        assert_eq!(field[(2, 1)].state, CellState::Revealed);
     }
 
     #[test]
     fn toggle_marked() {
-        let mut model = Model::new(3, 5);
-        model[(0, 0)].mine = true;
-        model.toggle_marked((1, 0));
-        assert_eq!(model[(1, 0)].state, CellState::Marked);
-        assert_eq!(model[(2, 0)].state, CellState::Unmarked);
-        model.toggle_marked((2, 0));
-        assert_eq!(model[(2, 0)].state, CellState::Marked);
-        assert_eq!(model[(2, 1)].state, CellState::Unmarked);
+        let mut field = Field::new(3, 5);
+        field[(0, 0)].mine = true;
+        field.toggle_marked((1, 0));
+        assert_eq!(field[(1, 0)].state, CellState::Marked);
+        assert_eq!(field[(2, 0)].state, CellState::Unmarked);
+        field.toggle_marked((2, 0));
+        assert_eq!(field[(2, 0)].state, CellState::Marked);
+        assert_eq!(field[(2, 1)].state, CellState::Unmarked);
     }
 
     #[test]
-    fn to_grid() {
-        let model = Model::new(3, 5);
-        let vec = model.to_grid();
+    fn to_field() {
+        let field = Field::new(3, 5);
+        let vec = field.to_field();
         assert_eq!(vec.len(), 5);
         let first_row = vec.first();
         assert!(first_row.is_some());

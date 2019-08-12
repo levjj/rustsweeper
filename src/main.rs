@@ -1,3 +1,3 @@
 fn main() {
-    yew::start_app::<rustsweeper::Model>();
+    yew::start_app::<rustsweeper::Field>();
 }
