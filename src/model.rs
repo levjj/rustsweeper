@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::{Rng, thread_rng};
 use std::convert::TryFrom;
 use std::ops::{Index, IndexMut};
 
@@ -23,6 +23,14 @@ pub struct Cell {
     pub mine: bool,
     pub neighbors: u8,
     pub state: CellState,
+}
+
+impl Cell {
+    fn reset(&mut self) {
+        self.mine = false;
+        self.neighbors = 0;
+        self.state = CellState::Unmarked;
+    }
 }
 
 /// The current game state of Rustsweeper.
@@ -77,9 +85,7 @@ impl Model {
     /// Resets the game state while preserving the dimensions.
     pub fn reset(&mut self) {
         for cell in self.cells.iter_mut() {
-            cell.mine = false;
-            cell.neighbors = 0;
-            cell.state = CellState::Unmarked;
+            cell.reset();
         }
     }
 
@@ -89,7 +95,7 @@ impl Model {
             let y: u8 = rng.gen_range(0, self.height);
             if !self[(x, y)].mine {
                 self[(x, y)].mine = true;
-                return;
+                break;
             }
         }
     }
@@ -105,14 +111,10 @@ impl Model {
         let width = self.width;
         let height = self.height;
         NEIGHBOR_POS.iter().filter_map(move |(rx, ry)| {
-            if let Ok(unx) = u8::try_from(x as i32 + rx) {
-                if let Ok(uny) = u8::try_from(y as i32 + ry) {
-                    if unx < width && uny < height {
-                        return Some((unx, uny));
-                    }
-                }
+            match (u8::try_from(x as i32 + rx), u8::try_from(y as i32 + ry)) {
+                (Ok(unx), Ok(uny)) if unx < width && uny < height => Some((unx, uny)),
+                _ => None
             }
-            None
         })
     }
 
@@ -163,10 +165,10 @@ impl Model {
     }
 
     fn reveal_transitive(&mut self, pos: Pos, todo: &mut Vec<Pos>) {
-        if self[pos].neighbors == 0 && !self[pos].mine {
-            for neighbor in self.iter_neighbors(pos) {
-                if self[neighbor].state == CellState::Unmarked {
-                    self[neighbor].state = CellState::Revealed;
+        for neighbor in self.iter_neighbors(pos) {
+            if self[neighbor].state == CellState::Unmarked {
+                self[neighbor].state = CellState::Revealed;
+                if self[neighbor].neighbors == 0 {
                     todo.push(neighbor)
                 }
             }
@@ -177,7 +179,7 @@ impl Model {
     /// with 0 neighboring mines.
     pub fn reveal(&mut self, pos: Pos) {
         self[pos].state = CellState::Revealed;
-        if !self[pos].mine {
+        if self[pos].neighbors == 0 && !self[pos].mine {
             let mut todo = vec![pos];
             while let Some(next) = todo.pop() {
                 self.reveal_transitive(next, &mut todo);
@@ -186,10 +188,10 @@ impl Model {
     }
 
     pub fn toggle_marked(&mut self, pos: Pos) {
-        if self[pos].state == CellState::Marked {
-            self[pos].state = CellState::Unmarked
-        } else if self[pos].state == CellState::Unmarked {
-            self[pos].state = CellState::Marked
+        self[pos].state = match self[pos].state {
+            CellState::Marked => CellState::Unmarked,
+            CellState::Unmarked => CellState::Marked,
+            CellState::Revealed => CellState::Revealed,
         }
     }
 
@@ -197,6 +199,11 @@ impl Model {
         (0..self.height)
             .map(|y| (0..self.width).map(|x| self[(x, y)].clone()).collect())
             .collect()
+    }
+
+    pub fn prepare_mines(&mut self, number_of_mines: u8) {
+        self.place_mines(number_of_mines, &mut thread_rng());
+        self.calc_neighbors();
     }
 }
 

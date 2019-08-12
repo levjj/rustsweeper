@@ -1,5 +1,4 @@
 use crate::model::{Cell, CellState, Model, Pos};
-use rand::thread_rng;
 use stdweb::traits::IEvent;
 use yew::{html, Callback, Component, ComponentLink, Html, Renderable, ShouldRender};
 
@@ -72,38 +71,21 @@ impl Component for CellModel {
 }
 
 fn cell_to_class(cell: &CellModel) -> String {
-    if cell.game_over {
-        if cell.state == CellState::Marked {
-            if cell.mine {
-                String::from("correct")
-            } else {
-                String::from("incorrect")
-            }
-        } else {
-            String::new()
-        }
-    } else {
-        if cell.state == CellState::Revealed {
-            String::new()
-        } else {
-            String::from("unknown")
-        }
+    match cell {
+        CellModel { game_over: true, state: CellState::Marked, mine: true, .. } => String::from("correct"),
+        CellModel { game_over: true, state: CellState::Marked, mine: false, .. } => String::from("incorrect"),
+        CellModel { game_over: false, state, .. } if *state != CellState::Revealed => String::from("unknown"),
+        _ => String::new()
     }
 }
 
 fn cell_to_str(cell: &CellModel) -> String {
-    if cell.state == CellState::Marked {
-        String::from("⚑")
-    } else if cell.state == CellState::Revealed || cell.game_over {
-        if cell.mine {
-            String::from("💣")
-        } else if cell.neighbors == 0 {
-            String::new()
-        } else {
-            cell.neighbors.to_string()
-        }
-    } else {
-        String::new()
+    let visible = cell.game_over || cell.state == CellState::Revealed;
+    match cell {
+        CellModel { state: CellState::Marked, .. } => String::from("⚑"),
+        CellModel { mine: true, .. } if visible => String::from("💣"),
+        CellModel { mine: false, neighbors: 1..=8, .. } if visible => cell.neighbors.to_string(),
+        _ => String::new()
     }
 }
 
@@ -123,14 +105,15 @@ impl Renderable<CellModel> for CellModel {
     }
 }
 
+const NUMBER_OF_MINES: u8 = 10;
+
 impl Component for Model {
     type Message = Action;
     type Properties = ();
 
     fn create(_: Self::Properties, _: ComponentLink<Self>) -> Self {
         let mut model = Model::new(9, 9);
-        model.place_mines(10, &mut thread_rng());
-        model.calc_neighbors();
+        model.prepare_mines(NUMBER_OF_MINES);
         model
     }
 
@@ -144,8 +127,7 @@ impl Component for Model {
             }
             Action::Restart => {
                 self.reset();
-                self.place_mines(10, &mut thread_rng());
-                self.calc_neighbors();
+                self.prepare_mines(NUMBER_OF_MINES);
             }
         }
         true
